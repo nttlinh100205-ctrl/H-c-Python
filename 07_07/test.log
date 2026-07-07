@@ -1,0 +1,40 @@
+2026-07-07 08:35:36,678 - INFO - Chia thành công :4/2=2.0
+2026-07-07 08:35:46,122 - ERROR - L\u1ed7i chia cho 0
+Traceback (most recent call last):
+  File "e:\H\u1ecdc Python\07_07\bai01.py", line 10, in <module>
+    c=a/b
+      ~^~
+ZeroDivisionError: division by zero
+2026-07-07 08:35:57,044 - ERROR - Loi nh\u1ea1p d\u1eef li\u1ec7u
+Traceback (most recent call last):
+  File "e:\H\u1ecdc Python\07_07\bai01.py", line 8, in <module>
+    a=int(input("Nh\u1eadp a: "))
+      ~~~^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'fc'
+2026-07-07 08:37:38,567 - ERROR - Loi nh\u1ea1p d\u1eef li\u1ec7u
+Traceback (most recent call last):
+  File "e:\H\u1ecdc Python\07_07\bai01.py", line 10, in <module>
+    b=int(input("Nh\u1eadp b: "))
+      ~~~^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'drvgt'
+2026-07-07 08:37:41,535 - ERROR - L\u1ed7i chia cho 0
+Traceback (most recent call last):
+  File "e:\H\u1ecdc Python\07_07\bai01.py", line 11, in <module>
+    c=a/b
+      ~^~
+ZeroDivisionError: division by zero
+2026-07-07 08:37:45,676 - INFO - Chia thành công :5/6=0.8333333333333334
+2026-07-07 08:38:11,014 - INFO - Chia thành công :2/4=0.5
+2026-07-07 08:38:20,162 - ERROR - Loi nh\u1ea1p d\u1eef li\u1ec7u
+Traceback (most recent call last):
+  File "e:\H\u1ecdc Python\07_07\bai01.py", line 9, in <module>
+    a=int(input("Nh\u1eadp a: "))
+      ~~~^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'bg'
+2026-07-07 08:38:22,317 - ERROR - L\u1ed7i chia cho 0
+Traceback (most recent call last):
+  File "e:\H\u1ecdc Python\07_07\bai01.py", line 11, in <module>
+    c=a/b
+      ~^~
+ZeroDivisionError: division by zero
+2026-07-07 08:38:25,882 - INFO - Chia thành công :6/8=0.75
