@@ -1,0 +1,18 @@
+[
+    {
+        "fullname": "Nguyen Linh",
+        "birth_date": "2005-10-10",
+        "gender": "Female",
+        "number_phone": 946222645,
+        "email": "lyn@gmail.com",
+        "id": 1
+    },
+    {
+        "fullname": "ABC",
+        "birth_date": "2005-02-12",
+        "gender": "Girl",
+        "number_phone": 946276545,
+        "email": "ninh@gmail.com",
+        "id": 2
+    }
+]

@@ -1,0 +1,14 @@
+[
+    {
+        "id": 1,
+        "department_name": "Phòng Nhân sự"
+    },
+    {
+        "id": 2,
+        "department_name": "Phòng IT"
+    },
+    {
+        "id": 3,
+        "department_name": "Phòng Giám Đốc"
+    }
+]
