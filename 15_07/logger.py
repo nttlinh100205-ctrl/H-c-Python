@@ -1,8 +1,6 @@
 import logging
 import sys
 from pathlib import Path
-from datetime import datetime
-
 
 class LoggerSingleton:
     """Singleton pattern cho Logger"""
@@ -11,36 +9,22 @@ class LoggerSingleton:
     _logger = None
     
     def __new__(cls):
-        """Đảm bảo chỉ tạo 1 instance"""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialize_logger()
         return cls._instance
     
     def _initialize_logger(self):
-        """Khởi tạo logger một lần duy nhất"""
-        # Tạo folder logs nếu chưa có
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
         
-        # Tạo logger
         self._logger = logging.getLogger("HR_API")
         self._logger.setLevel(logging.DEBUG)
-        
-        # Clear handlers cũ (nếu có)
         self._logger.handlers.clear()
         
-        # File handler - ghi vào file (UTF-8 để lưu tiếng Việt đúng)
-        file_handler = logging.FileHandler(
-            log_dir / f"app.log",
-            encoding='utf-8'
-        )
+        file_handler = logging.FileHandler(log_dir / f"app.log", encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         
-        # ✅ FIX LỖI TIẾNG VIỆT TRÊN CONSOLE:
-        # Trên Windows, console mặc định dùng codepage cp1252/cp850,
-        # không hiển thị đúng ký tự Unicode (tiếng Việt có dấu).
-        # Ép sys.stdout/sys.stderr sang UTF-8 nếu Python hỗ trợ (>=3.7).
         for stream in (sys.stdout, sys.stderr):
             if hasattr(stream, "reconfigure"):
                 try:
@@ -48,11 +32,9 @@ class LoggerSingleton:
                 except Exception:
                     pass
         
-        # Console handler - hiển thị console
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
         
-        # Formatter
         formatter = logging.Formatter(
             '%(asctime)s | %(levelname)-8s | %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
@@ -60,7 +42,6 @@ class LoggerSingleton:
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
         
-        # Thêm handlers
         self._logger.addHandler(file_handler)
         self._logger.addHandler(console_handler)
         
@@ -69,24 +50,40 @@ class LoggerSingleton:
         self._logger.info("=" * 70)
     
     def get_logger(self):
-        """Lấy logger instance"""
         return self._logger
     
     def info(self, message):
-        """Log info level"""
         self._logger.info(f" {message}")
     
     def warning(self, message):
-        """Log warning level"""
         self._logger.warning(f" {message}")
     
     def error(self, message):
-        """Log error level"""
         self._logger.error(f" {message}")
     
     def debug(self, message):
-        """Log debug level"""
         self._logger.debug(f" {message}")
+
+    # ----------------------------------------------------------------------
+    # CÁC HÀM GHI LOG CHUYÊN BIỆT CHO BUSINESS LOGIC
+    # ----------------------------------------------------------------------
+    def log_salary_calculation(self, emp_id: int, year: int, month: int, standard_days: int, 
+                               paid_leave: int, unpaid_leave: int, actual_paid: int, actual_gross: float):
+        """Log quá trình tính lương"""
+        self.info(
+            f"[SalaryCalc] emp_id={emp_id}, period={year}-{month:02d}: "
+            f"standard_days={standard_days}, paid_leave_days={paid_leave}, "
+            f"unpaid_leave_days={unpaid_leave}, actual_paid_days={actual_paid}, "
+            f"actual_gross={actual_gross}"
+        )
+
+    def log_unknown_leave_type(self, original_value: str, normalized_value: str):
+        """Log khi phát hiện loại nghỉ phép không xác định"""
+        self.warning(f"Unknown leave_type: '{original_value}' -> normalized to '{normalized_value}'")
+
+    def log_leave_request_normalization(self, original_value: str, normalized_value: str):
+        """Log kết quả chuẩn hóa đơn nghỉ phép"""
+        self.debug(f"LeaveRequest: normalized '{original_value}' -> '{normalized_value}'")
 
 
 # Tạo instance duy nhất
