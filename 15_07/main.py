@@ -131,8 +131,8 @@ def login_root(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
 # --------------------------------------------------------------------------
 # 2. ADMIN APP (QUẢN TRỊ VIÊN)
 # --------------------------------------------------------------------------
-@admin_app.post("/users", response_model=ResponseSuccess, tags=["Accounts"], summary="Tạo tài khoản mới cho nhân viên")
-def create_user(data: UserCreate, db: Session = Depends(database.get_db), current_user = Depends(require_roles(Role.ADMIN))):
+@admin_app.post("/users", response_model=ResponseSuccess,dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Accounts"], summary="Tạo tài khoản mới cho nhân viên")
+def create_user(data: UserCreate, db: Session = Depends(database.get_db)):
     try:
         service = UserService(db)
         result = service.register(username=data.username, password=data.password, role=Role.EMPLOYEE, employee_id=data.employee_id)
@@ -140,8 +140,8 @@ def create_user(data: UserCreate, db: Session = Depends(database.get_db), curren
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@admin_app.post("/departments", response_model=ResponseSuccess, tags=["Departments"], summary="Tạo phòng ban mới")
-def create_department(data: DepartmentCreate, db: Session = Depends(database.get_db), current_user = Depends(require_roles(Role.ADMIN))):
+@admin_app.post("/departments", response_model=ResponseSuccess, dependencies=[Depends(require_roles(Role.ADMIN))],tags=["Departments"], summary="Tạo phòng ban mới")
+def create_department(data: DepartmentCreate, db: Session = Depends(database.get_db)):
     try:
         service = DepartmentService(db)
         result = service.create(data)
@@ -161,18 +161,18 @@ def list_departments(
     items, total = service.get_all(search=search, skip=skip, limit=limit)
     return DepartmentListResponse(items=[DepartmentResponse.model_validate(item) for item in items], meta=build_pagination_meta(total, skip, limit))
 
-@admin_app.put("/departments/{department_id}", tags=["Departments"], summary="Sửa thông tin phòng ban")
-def update_department(department_id: int, data: DepartmentUpdate, db: Session = Depends(database.get_db), current_admin = Depends(require_roles(Role.ADMIN))):
+@admin_app.put("/departments/{department_id}", tags=["Departments"],dependencies=[Depends(require_roles(Role.ADMIN))], summary="Sửa thông tin phòng ban")
+def update_department(department_id: int, data: DepartmentUpdate, db: Session = Depends(database.get_db)):
     service = DepartmentService(db)
     return service.update_department(department_id, data)
 
-@admin_app.delete("/departments/{department_id}", tags=["Departments"], summary="Xóa phòng ban")
-def delete_department(department_id: int, db: Session = Depends(database.get_db), current_admin = Depends(require_roles(Role.ADMIN))):
+@admin_app.delete("/departments/{department_id}", dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Departments"], summary="Xóa phòng ban")
+def delete_department(department_id: int, db: Session = Depends(database.get_db)):
     service = DepartmentService(db)
     return service.delete_department(department_id)
 
-@admin_app.post("/employees", response_model=ResponseSuccess, tags=["Employees"], summary="Tạo nhân viên mới")
-def create_employee(data: EmployeeCreate, db: Session = Depends(database.get_db), current_user = Depends(require_roles(Role.ADMIN))):
+@admin_app.post("/employees", response_model=ResponseSuccess,dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Employees"], summary="Tạo nhân viên mới")
+def create_employee(data: EmployeeCreate, db: Session = Depends(database.get_db)):
     try:
         service = EmployeeService(db)
         result = service.create(data)
@@ -196,8 +196,8 @@ def list_employees(
     items, total = service.get_all(search=search, department_id=department_id, is_active=is_active, min_salary=min_salary, max_salary=max_salary, skip=skip, limit=limit)
     return EmployeeListResponse(items=[EmployeeResponse.model_validate(item) for item in items], meta=build_pagination_meta(total, skip, limit))
 
-@admin_app.get("/employees/export-csv", tags=["Employees"], summary="Xuất danh sách nhân viên ra Excel (.xlsx)")
-def export_csv(db: Session = Depends(database.get_db), current_user = Depends(require_roles(Role.ADMIN))):
+@admin_app.get("/employees/export-csv", tags=["Employees"], dependencies=[Depends(require_roles(Role.ADMIN))], summary="Xuất danh sách nhân viên ra Excel (.xlsx)")
+def export_csv(db: Session = Depends(database.get_db)):
     try:
         service = EmployeeService(db)
         employees = service.export_to_csv()
@@ -207,16 +207,16 @@ def export_csv(db: Session = Depends(database.get_db), current_user = Depends(re
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@admin_app.get("/employees/{emp_id}", response_model=EmployeeResponse, tags=["Employees"], summary="Xem chi tiết nhân viên")
-def get_employee(emp_id: int, db: Session = Depends(database.get_db), current_user = Depends(require_roles(Role.ADMIN))):
+@admin_app.get("/employees/{emp_id}", response_model=EmployeeResponse,dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Employees"], summary="Xem chi tiết nhân viên")
+def get_employee(emp_id: int, db: Session = Depends(database.get_db)):
     service = EmployeeService(db)
     emp = service.get_by_id(emp_id)
     if not emp:
         raise HTTPException(status_code=404, detail=config.get_message("employee_not_found"))
     return EmployeeResponse.model_validate(emp)
 
-@admin_app.put("/employees/{emp_id}", response_model=ResponseSuccess, tags=["Employees"], summary="Cập nhật toàn bộ nhân viên")
-def update_employee(emp_id: int, data: EmployeeCreate, db: Session = Depends(database.get_db), current_user = Depends(require_roles(Role.ADMIN))):
+@admin_app.put("/employees/{emp_id}", response_model=ResponseSuccess, dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Employees"], summary="Cập nhật toàn bộ nhân viên")
+def update_employee(emp_id: int, data: EmployeeCreate, db: Session = Depends(database.get_db)):
     try:
         service = EmployeeService(db)
         result = service.update(emp_id, data)
@@ -224,8 +224,8 @@ def update_employee(emp_id: int, data: EmployeeCreate, db: Session = Depends(dat
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@admin_app.patch("/employees/{emp_id}", response_model=ResponseSuccess, tags=["Employees"], summary="Sửa một phần nhân viên")
-def patch_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(database.get_db), current_user = Depends(require_roles(Role.ADMIN))):
+@admin_app.patch("/employees/{emp_id}", response_model=ResponseSuccess,dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Employees"], summary="Sửa một phần nhân viên")
+def patch_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(database.get_db)):
     try:
         service = EmployeeService(db)
         result = service.update_partial(emp_id, data)
