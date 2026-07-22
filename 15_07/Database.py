@@ -11,11 +11,9 @@ class Department(Base):
     __tablename__ = "departments"
 
     id = Column(Integer, primary_key=True, index=True)
-    # ✅ Dùng Unicode (map -> NVARCHAR trên SQL Server) để lưu tiếng Việt có dấu đúng
     name = Column(Unicode(100), nullable=False)
     description = Column(Unicode(255), nullable=True)
 
-    # Mối quan hệ: Một phòng ban có nhiều nhân viên
     employees = relationship("Employee", back_populates="department")
 
 
@@ -23,27 +21,41 @@ class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(Integer, primary_key=True, index=True)
-    # ✅ Các trường có thể chứa tiếng Việt -> Unicode (NVARCHAR)
     fullname = Column(Unicode(150), nullable=False)
-    email = Column(String(150), unique=True, index=True, nullable=True)  # Email luôn ASCII, giữ String
-    phone = Column(String(20), nullable=True)  # Phone luôn số, giữ String
-    position = Column(Unicode(100), nullable=True)  # ✅ Chức vụ có thể là tiếng Việt
+    email = Column(String(150), unique=True, index=True, nullable=True)  
+    phone = Column(String(20), nullable=True)
+    position = Column(Unicode(100), nullable=True)
     salary = Column(Float, nullable=True)
     hire_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
     
-    # Khóa ngoại liên kết với bảng departments
     department_id = Column(Integer, ForeignKey("departments.id"))
-    
-    # Mối quan hệ ngược lại
     department = relationship("Department", back_populates="employees")
 
 
+class LeaveRequest(Base):
+    __tablename__ = "leave_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    leave_type = Column(String(50), nullable=False)  # 'có lương' hoặc 'không lương'
+    reason = Column(Unicode(255), nullable=True)
+    status = Column(String(20), default="pending")  # pending, approved, rejected
+
+    employee = relationship("Employee", backref="leave_requests")
+
+
 class User(Base):
- 
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="employee")
+    is_active = Column(Boolean, default=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True)
 
 
 class DatabaseSingleton:
@@ -59,18 +71,14 @@ class DatabaseSingleton:
     
     def _initialize_database(self):
         try:
-            # Thông tin kết nối
             SERVER_NAME = r"DESKTOP-CMHT1RR\SQLEXPRESS"               
             DB_NAME = "HR_Database"
             DRIVER_NAME = "ODBC Driver 17 for SQL Server" 
             
             driver_url = DRIVER_NAME.replace(" ", "+")
             
-            # ✅ ĐÃ BỎ "&charset=utf8" - param này KHÔNG hợp lệ với mssql+pyodbc
-            # (đó là cú pháp dành cho MySQL). Với NVARCHAR + ODBC Driver 17,
-            # Unicode được xử lý tự động, không cần khai báo charset thủ công.
             DATABASE_URL = (
-                f"mssql+pyodbc://@{SERVER_NAME}/{DB_NAME}"
+                f"mssql+pyodbc://@{"DESKTOP-CMHT1RR\SQLEXPRESS"}/{"HR_Database"}"
                 f"?driver={driver_url}&Trusted_Connection=yes&TrustServerCertificate=yes"
             )
      
@@ -80,7 +88,6 @@ class DatabaseSingleton:
                 poolclass=QueuePool,
                 pool_size=config.get("DB_POOL_SIZE", 5),
                 max_overflow=config.get("DB_MAX_OVERFLOW", 10),
-                # ✅ fast_executemany giúp pyodbc gửi dữ liệu Unicode ổn định hơn
                 fast_executemany=True,
             )
             
@@ -90,7 +97,7 @@ class DatabaseSingleton:
                 bind=self._engine
             )
             
-            logger.info(f"Database connection initialized: Connected to SQL Server ({SERVER_NAME})")
+            logger.info(f"Database connection initialized: Connected to SQL Server ({"DESKTOP-CMHT1RR\SQLEXPRESS"})")
             
         except Exception as e:
             logger.error(f"Failed to initialize database: {str(e)}")
@@ -132,5 +139,4 @@ class DatabaseSingleton:
             logger.error(f"Failed to drop tables: {str(e)}")
             raise
 
-# Tạo instance duy nhất
 database = DatabaseSingleton()
