@@ -71,17 +71,16 @@ class DatabaseSingleton:
     
     def _initialize_database(self):
         try:
-            SERVER_NAME = r"DESKTOP-CMHT1RR\SQLEXPRESS"               
-            DB_NAME = "HR_Database"
-            DRIVER_NAME = "ODBC Driver 17 for SQL Server" 
-            
-            driver_url = DRIVER_NAME.replace(" ", "+")
-            
+            server_name = config.get("DB_SERVER")
+            db_name = config.get("DB_NAME")
+            driver_url = config.get("DB_DRIVER").replace(" ", "+")
+
             DATABASE_URL = (
-                f"mssql+pyodbc://@{"DESKTOP-CMHT1RR\SQLEXPRESS"}/{"HR_Database"}"
-                f"?driver={driver_url}&Trusted_Connection=yes&TrustServerCertificate=yes"
+                f"mssql+pyodbc://@{server_name}/{db_name}"
+                f"?driver={driver_url}&Trusted_Connection={config.get('DB_TRUSTED_CONNECTION')}"
+                f"&TrustServerCertificate=yes"
             )
-     
+
             self._engine = create_engine(
                 DATABASE_URL,
                 echo=config.get("DB_ECHO", False),      
@@ -97,7 +96,7 @@ class DatabaseSingleton:
                 bind=self._engine
             )
             
-            logger.info(f"Database connection initialized: Connected to SQL Server ({"DESKTOP-CMHT1RR\SQLEXPRESS"})")
+            logger.info(f"Database connection initialized: Connected to SQL Server ({server_name})")
             
         except Exception as e:
             logger.error(f"Failed to initialize database: {str(e)}")
@@ -138,5 +137,18 @@ class DatabaseSingleton:
         except Exception as e:
             logger.error(f"Failed to drop tables: {str(e)}")
             raise
+class SalaryRecord(Base):
+    __tablename__ = "salary_records"
 
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    gross_salary = Column(Float, nullable=False)
+    standard_work_days = Column(Integer, nullable=False)
+    paid_leave_days = Column(Integer, nullable=False, default=0)
+    unpaid_leave_days = Column(Integer, nullable=False, default=0)
+    net_salary = Column(Float, nullable=False)
+    
+    employee = relationship("Employee")
 database = DatabaseSingleton()
