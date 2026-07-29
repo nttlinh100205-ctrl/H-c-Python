@@ -149,13 +149,12 @@ def create_department(data: DepartmentCreate, db: Session = Depends(database.get
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@admin_app.get("/departments", response_model=DepartmentListResponse, tags=["Departments"], summary="Lấy danh sách phòng ban")
+@admin_app.get("/departments", response_model=DepartmentListResponse, dependencies=[Depends(require_roles(Role.ADMIN))],tags=["Departments"], summary="Lấy danh sách phòng ban")
 def list_departments(
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(database.get_db),
-    current_user = Depends(require_roles(Role.ADMIN))
 ):
     service = DepartmentService(db)
     items, total = service.get_all(search=search, skip=skip, limit=limit)
@@ -224,11 +223,13 @@ def update_employee(emp_id: int, data: EmployeeCreate, db: Session = Depends(dat
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@admin_app.patch("/employees/{emp_id}", response_model=ResponseSuccess,dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Employees"], summary="Sửa một phần nhân viên")
+@admin_app.patch("/employees/{emp_id}", response_model=ResponseSuccess,dependencies=[Depends(require_roles(Role.ADMIN))], tags=["Employees"], summary="Sửa thông tin nhân viên")
 def patch_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(database.get_db)):
     try:
         service = EmployeeService(db)
-        result = service.update_partial(emp_id, data)
+        update_data_dict = data.model_dump(exclude_unset=True)
+        
+        result = service.update_partial(emp_id, update_data_dict)
         return ResponseSuccess(message=config.get_message("update_employee_success", name=result.fullname), data=EmployeeResponse.model_validate(result))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -320,12 +321,12 @@ def get_all_leave_requests(
     data = [LeaveRequestResponse.model_validate(r) for r in requests]
     return ResponseSuccess(message="Lấy danh sách đơn nghỉ phép thành công!", data=data)
 
-@admin_app.patch("/leave-requests/{request_id}/status", response_model=ResponseSuccess, tags=["Quản lý nghỉ phép"], summary="Admin duyệt hoặc từ chối đơn nghỉ phép")
+@admin_app.patch("/leave-requests/{request_id}/status", response_model=ResponseSuccess, dependencies=[Depends(require_roles(Role.ADMIN))],tags=["Quản lý nghỉ phép"], summary="Admin duyệt hoặc từ chối đơn nghỉ phép")
 def update_leave_request_status(
     request_id: int,
     data: LeaveRequestStatusUpdate,
     db: Session = Depends(database.get_db),
-    current_user = Depends(require_roles(Role.ADMIN))
+   
 ):
     try:
         service = LeaveRequestService(db)

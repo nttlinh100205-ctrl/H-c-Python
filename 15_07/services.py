@@ -154,10 +154,10 @@ class LeaveRequestService:
         
         normalized = leave_type_value.strip().lower()
         
-        if "có lương" in normalized or "paid" in normalized:
-            normalized = LeaveTypeEnum.PAID.value.lower()
-        elif "không lương" in normalized or "unpaid" in normalized:
+        if normalized in ["không lương", "unpaid"]:
             normalized = LeaveTypeEnum.UNPAID.value.lower()
+        elif normalized in ["có lương", "paid"]:
+            normalized = LeaveTypeEnum.PAID.value.lower()
             
         logger.log_unknown_leave_type(original_value=leave_type_value, normalized_value=normalized)
         return normalized
@@ -404,12 +404,11 @@ class EmployeeService:
         self.db.refresh(employee)
         return employee
 
-    def update_partial(self, emp_id: int, data: EmployeeUpdate):
+    def update_partial(self, emp_id: int, update_data: dict):
         employee = self.db.query(Employee).filter(Employee.id == emp_id).first()
         if not employee:
             raise ValueError(config.get_message("employee_not_found"))
 
-        update_data = data.model_dump(exclude_unset=True)
         if not update_data:
             raise ValueError("Không có dữ liệu nào được gửi lên để cập nhật!")
 
@@ -446,7 +445,7 @@ class EmployeeService:
 
     def update_self(self, emp_id: int, data: EmployeeSelfUpdate):
         allowed_fields = data.model_dump(exclude_unset=True)
-        return self.update_partial(emp_id, EmployeeUpdate(**allowed_fields))
+        return self.update_partial(emp_id, allowed_fields)
 
 
 class UserService:

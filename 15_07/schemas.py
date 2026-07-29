@@ -58,6 +58,9 @@ class EmployeeUpdate(BaseModel):
     email: Optional[EmailStr] = Field(None, example="nguyenvana@gmail.com")
     phone: Optional[str] = Field(None, max_length=20, example="0987654321")
     position: Optional[str] = Field(None, max_length=100, example="Lập trình viên Backend")
+    salary: Optional[float] = Field(None, example=15000000.0)
+    hire_date: Optional[date] = Field(None, example="2026-07-16")
+    is_active: Optional[bool] = Field(None, example=True)
     department_id: Optional[int] = Field(None, example=1)
 
 class EmployeeSelfUpdate(BaseModel):

@@ -25,7 +25,7 @@ class Employee(Base):
     email = Column(String(150), unique=True, index=True, nullable=True)  
     phone = Column(String(20), nullable=True)
     position = Column(Unicode(100), nullable=True)
-    salary = Column(Float, nullable=True)
+    salary = Column(Float,nullable=True)
     hire_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
     
@@ -40,7 +40,7 @@ class LeaveRequest(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
-    leave_type = Column(String(50), nullable=False)  # 'có lương' hoặc 'không lương'
+    leave_type = Column(String(50), nullable=False)  
     reason = Column(Unicode(255), nullable=True)
     status = Column(String(20), default="pending")  # pending, approved, rejected
 
