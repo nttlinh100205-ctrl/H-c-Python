@@ -1,3 +1,6 @@
+import os
+
+
 class ConfigSingleton:
     
     _instance = None
@@ -29,10 +32,16 @@ class ConfigSingleton:
         self.DATE_FORMAT = '%Y-%m-%d'
         self.DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
         
-        self.DB_ECHO = True  # Set to True để debug SQL queries
+        self.DB_ECHO = os.environ.get("DB_ECHO", "True").lower() == "true"  # Set False khi lên production
         self.DB_POOL_SIZE = 5
         self.DB_MAX_OVERFLOW = 10
-        
+
+        # 🗄️ Kết nối SQL Server — đọc từ biến môi trường để không hardcode
+        # tên máy/DB trong source code (dev khác máy hoặc deploy sẽ khác nhau).
+        self.DB_SERVER = os.environ.get("DB_SERVER", r"DESKTOP-CMHT1RR\SQLEXPRESS")
+        self.DB_NAME = os.environ.get("DB_NAME", "HR_Database")
+        self.DB_DRIVER = os.environ.get("DB_DRIVER", "ODBC Driver 17 for SQL Server")
+        self.DB_TRUSTED_CONNECTION = os.environ.get("DB_TRUSTED_CONNECTION", "yes")
         
         self.CSV_FILENAME = "danh_sach_nhan_vien.csv"
         self.CSV_ENCODING = 'utf-8-sig'  # Có BOM cho Excel
@@ -40,7 +49,6 @@ class ConfigSingleton:
         # 🔐 JWT / Authentication
         # ⚠️ SECRET_KEY nên đọc từ biến môi trường khi deploy thật,
         # không hardcode trong source code.
-        import os
         self.JWT_SECRET_KEY = os.environ.get(
             "JWT_SECRET_KEY", "hr-api-dev-secret-key-doi-khi-deploy-that"
         )

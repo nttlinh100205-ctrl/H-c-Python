@@ -4,9 +4,8 @@ from sqlalchemy import or_
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 import calendar
-from fastapi import HTTPException
 
-from .Database import Department, Employee, User, LeaveRequest
+from .Database import Department, Employee, User, LeaveRequest,SalaryRecord
 from .config import config  
 from .logger import logger
 from .schemas import (
@@ -188,11 +187,81 @@ class LeaveRequestService:
             .filter(LeaveRequest.employee_id == employee_id)\
             .order_by(LeaveRequest.id.desc()).all()
 
-    def get_all(self, status: Optional[str] = None) -> List[LeaveRequest]:
+    def get_all(self, status: Optional[str] = None, employee_id: Optional[int] = None, from_date: Optional[date] = None, to_date: Optional[date] = None):
         query = self.db.query(LeaveRequest)
         if status:
             query = query.filter(LeaveRequest.status == status)
-        return query.order_by(LeaveRequest.id.desc()).all()
+        if employee_id:
+            query = query.filter(LeaveRequest.employee_id == employee_id)
+        if from_date:
+            query = query.filter(LeaveRequest.end_date >= from_date)
+        if to_date:
+            query = query.filter(LeaveRequest.start_date <= to_date)
+        return query.all()
+
+    # 2. Bổ sung 3 hàm mới cho nhân viên (Sửa, Xóa, Xem tổng quát)
+    def update_my_request(self, request_id: int, employee_id: int, data: dict):
+        req = self.db.query(LeaveRequest).filter(LeaveRequest.id == request_id, LeaveRequest.employee_id == employee_id).first()
+        if not req:
+            raise ValueError("Không tìm thấy đơn nghỉ phép của bạn!")
+        if req.status != LeaveStatusEnum.pending.value:
+            raise ValueError("Chỉ có thể sửa đơn khi đang ở trạng thái 'pending' (chờ duyệt).")
+        
+        for key, value in data.items():
+            if value is not None:
+                setattr(req, key, value)
+        
+        self.db.commit()
+        self.db.refresh(req)
+        return req
+
+    def delete_my_request(self, request_id: int, employee_id: int):
+        req = self.db.query(LeaveRequest).filter(LeaveRequest.id == request_id, LeaveRequest.employee_id == employee_id).first()
+        if not req:
+            raise ValueError("Không tìm thấy đơn nghỉ phép của bạn!")
+        if req.status != LeaveStatusEnum.pending.value:
+            raise ValueError("Chỉ có thể hủy đơn khi đang ở trạng thái 'pending' (chờ duyệt).")
+        
+        self.db.delete(req)
+        self.db.commit()
+        return True
+
+    def get_leave_summary(self, employee_id: int, year: int):
+        start_date_year = date(year, 1, 1)
+        end_date_year = date(year, 12, 31)
+        
+        # Lấy các đơn đã duyệt trong năm
+        approved_requests = self.db.query(LeaveRequest).filter(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.status == LeaveStatusEnum.approved.value,
+            LeaveRequest.start_date <= end_date_year,
+            LeaveRequest.end_date >= start_date_year
+        ).all()
+        
+        used_days = 0.0
+        for req in approved_requests:
+            actual_start = max(req.start_date, start_date_year)
+            actual_end = min(req.end_date, end_date_year)
+            # Tính số ngày đơn giản (Có thể thay thế bằng logic loại trừ cuối tuần tùy theo policy)
+            days = (actual_end - actual_start).days + 1
+            used_days += days
+            
+        total_allowed = 12.0
+        return {
+            "year": year,
+            "total_allowed": total_allowed,
+            "used_days": used_days,
+            "remaining_days": max(0.0, total_allowed - used_days)
+        }
+
+    def get_approved_in_range(self, employee_id: int, start_date: date, end_date: date) -> List[LeaveRequest]:
+        """Lấy các đơn nghỉ đã được duyệt của 1 nhân viên, có giao với khoảng [start_date, end_date]."""
+        return self.db.query(LeaveRequest).filter(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.status.ilike("approved"),
+            LeaveRequest.start_date <= end_date,
+            LeaveRequest.end_date >= start_date,
+        ).all()
 
     def update_status(self, request_id: int, status: str) -> LeaveRequest:
         leave_request = self.db.query(LeaveRequest).filter(LeaveRequest.id == request_id).first()
@@ -235,10 +304,12 @@ class DepartmentService:
     def update_department(self, department_id: int, data: DepartmentUpdate):
         department = self.db.query(Department).filter(Department.id == department_id).first()
         if not department:
-            raise HTTPException(status_code=404, detail="Không tìm thấy phòng ban")
+            raise ValueError(config.get_message("department_not_found"))
 
         if data.name:
             department.name = data.name
+        if data.description is not None:
+            department.description = data.description
 
         self.db.commit()
         self.db.refresh(department)
@@ -247,10 +318,25 @@ class DepartmentService:
     def delete_department(self, department_id: int):
         department = self.db.query(Department).filter(Department.id == department_id).first()
         if not department:
-            raise HTTPException(status_code=404, detail="Không tìm thấy phòng ban")
+            raise ValueError(config.get_message("department_not_found"))
+
+
+        employee_count = self.db.query(Employee).filter(Employee.department_id == department_id).count()
+        if employee_count > 0:
+            raise ValueError(
+                f"Không thể xóa phòng ban vì vẫn còn {employee_count} nhân viên thuộc phòng ban này. "
+                "Vui lòng chuyển nhân viên sang phòng ban khác trước."
+            )
 
         self.db.delete(department)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as e:
+            self.db.rollback()
+            raise ForeignKeyReferenceError(
+                "Không thể xóa phòng ban vì vẫn còn nhân viên thuộc phòng ban này"
+            ) from e
+
         return {"detail": "Đã xóa phòng ban thành công"}
 
     def get_all(self, search: Optional[str] = None, skip: int = 0, limit: int = 100):
@@ -271,7 +357,11 @@ class DepartmentService:
 
         except OperationalError as e:
             raise DatabaseConnectionError("Không thể kết nối tới cơ sở dữ liệu") from e
-
+    def get_by_id(self, department_id: int):
+        dept = self.db.query(Department).filter(Department.id == department_id).first()
+        if not dept:
+            raise ValueError("Không tìm thấy phòng ban!")
+        return dept
 
 class EmployeeService:
     def __init__(self, db: Session):
@@ -289,7 +379,12 @@ class EmployeeService:
         
         if data.salary and data.salary <= 0:
             raise ValueError(config.get_message("salary_invalid"))
-        
+
+        if data.department_id is not None:
+            dept_exists = self.db.query(Department).filter(Department.id == data.department_id).first()
+            if not dept_exists:
+                raise ValueError(config.get_message("department_not_found"))
+
         if data.hire_date:
             hire_date_val = data.hire_date
             if isinstance(hire_date_val, str):
@@ -357,7 +452,11 @@ class EmployeeService:
 
     def get_by_id(self, emp_id: int):
         return self.db.query(Employee).filter(Employee.id == emp_id).first()
-
+    def get_by_id(self, department_id: int):
+        dept = self.db.query(Department).filter(Department.id == department_id).first()
+        if not dept:
+            raise ValueError("Không tìm thấy phòng ban!")
+        return dept
     def export_to_csv(self):
         employees = self.db.query(Employee).all()
         if not employees:
@@ -486,4 +585,130 @@ class UserService:
         user = self.db.query(User).filter(User.username == username).first()
         if not user or not user.is_active or not verify_password(password, user.hashed_password):
             return None
+        return user 
+
+    def get_all(self, skip: int = 0, limit: int = 100):
+        query = self.db.query(User)
+        total = query.count()
+        items = query.order_by(User.id.desc()).offset(skip).limit(limit).all()
+        return items, total
+
+    def update_user(self, user_id: int, data: dict):
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("Không tìm thấy tài khoản!")
+        
+        if 'is_active' in data and data['is_active'] is not None:
+            user.is_active = data['is_active']
+        if 'role' in data and data['role'] is not None:
+            user.role = data['role']
+        if 'password' in data and data['password'] is not None:
+            user.hashed_password = hash_password(data['password'])
+            
+        self.db.commit()
+        self.db.refresh(user)
         return user
+
+    def delete(self, user_id: int):
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("Không tìm thấy tài khoản!")
+        self.db.delete(user)
+        self.db.commit()
+        return user
+
+    def change_password(self, user_id: int, old_password: str, new_password: str):
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("Không tìm thấy tài khoản!")
+        
+        if not verify_password(old_password, user.hashed_password):
+            raise ValueError("Mật khẩu cũ không chính xác!")
+            
+        user.hashed_password = hash_password(new_password)
+        self.db.commit()
+        return user
+class PayrollService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def run_payroll_batch(self, year: int, month: int):
+        # 1. Kiểm tra xem tháng này đã chạy lương chưa
+        existing = self.db.query(SalaryRecord).filter(
+            SalaryRecord.year == year, SalaryRecord.month == month
+        ).first()
+        if existing:
+            raise ValueError(f"Lương tháng {month}/{year} đã được tính và lưu trước đó!")
+
+        # 2. Lấy toàn bộ nhân viên đang hoạt động
+        employees = self.db.query(Employee).filter(Employee.is_active == True).all()
+        standard_work_days = SalaryService.get_standard_work_days(year, month)
+        start_month, end_month, _ = SalaryService.get_month_range(year, month)
+        leave_service = LeaveRequestService(self.db)
+        
+        processed_count = 0
+        total_net = 0.0
+
+        for emp in employees:
+            if not emp.salary or emp.salary <= 0:
+                continue
+            
+            approved_leaves = leave_service.get_approved_in_range(emp.id, start_month, end_month)
+            paid_leave, unpaid_leave = SalaryService.calculate_leave_days_in_month(
+                approved_leaves, year, month
+            )
+            
+            # Tính lương bằng logic có sẵn
+            breakdown = SalaryService.calculate(
+                gross_salary=emp.salary,
+                standard_work_days=standard_work_days,
+                unpaid_leave_days=unpaid_leave,
+                paid_leave_days=paid_leave,
+                emp_id=emp.id, year=year, month=month
+            )
+            
+            net_salary = breakdown["luong_net_thuc_nhan"]
+            
+            # Lưu vào Database
+            record = SalaryRecord(
+                employee_id=emp.id,
+                year=year,
+                month=month,
+                gross_salary=emp.salary,
+                standard_work_days=standard_work_days,
+                paid_leave_days=paid_leave,
+                unpaid_leave_days=unpaid_leave,
+                net_salary=net_salary
+            )
+            self.db.add(record)
+            processed_count += 1
+            total_net += net_salary
+            
+        self.db.commit()
+        return {
+            "year": year,
+            "month": month,
+            "total_employees_processed": processed_count,
+            "total_net_salary": total_net
+        }
+
+    def get_salary_history(self, employee_id: int):
+        return self.db.query(SalaryRecord).filter(
+            SalaryRecord.employee_id == employee_id
+        ).order_by(SalaryRecord.year.desc(), SalaryRecord.month.desc()).all()
+        
+    def get_salary_by_month(self, employee_id: int, year: int, month: int):
+        record = self.db.query(SalaryRecord).filter(
+            SalaryRecord.employee_id == employee_id,
+            SalaryRecord.year == year, SalaryRecord.month == month
+        ).first()
+        if not record:
+            raise ValueError(f"Chưa có phiếu lương tháng {month}/{year}")
+        return record
+    def get_payroll_by_month(self, year: int, month: int):
+        records = self.db.query(SalaryRecord).filter(
+            SalaryRecord.year == year, 
+            SalaryRecord.month == month
+        ).first()
+        
+        return records

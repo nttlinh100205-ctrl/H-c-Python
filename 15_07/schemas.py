@@ -3,6 +3,8 @@ from typing import Optional, Any, List
 from datetime import date, datetime
 from enum import Enum
 
+from .auth import Role
+
 
 class ResponseSuccess(BaseModel):
     message: str = Field(..., example="Thao tác thành công")
@@ -86,8 +88,8 @@ class EmployeeListResponse(BaseModel):
 
 
 class RoleEnum(str, Enum):
-    admin = "admin"
-    employee = "employee"
+    admin = Role.ADMIN
+    employee = Role.EMPLOYEE
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, example="nguyenvana")
@@ -110,6 +112,7 @@ class LoginRequest(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None 
     token_type: str = "bearer"
     role: str
     expires_in_minutes: int
@@ -161,3 +164,50 @@ class LeaveRequestResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class LeaveRequestUpdate(BaseModel):
+    leave_type: Optional[LeaveTypeEnum] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    reason: Optional[str] = None
+
+class LeaveSummaryResponse(BaseModel):
+    year: int
+    total_allowed: float = Field(12.0, description="Tổng số ngày phép tiêu chuẩn trong năm")
+    used_days: float = Field(0.0, description="Số ngày phép đã sử dụng (đã duyệt)")
+    remaining_days: float = Field(0.0, description="Số ngày phép còn lại")
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., description="Mật khẩu cũ")
+    new_password: str = Field(..., min_length=6, description="Mật khẩu mới (ít nhất 6 ký tự)")
+
+class UserUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    role: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=6, description="Mật khẩu mới nếu admin muốn reset")
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class UserListResponse(BaseModel):
+    items: List[UserResponse]
+    meta: PaginationMeta
+class SalaryRecordResponse(BaseModel):
+    id: int
+    employee_id: int
+    year: int
+    month: int
+    gross_salary: float
+    standard_work_days: int
+    paid_leave_days: int
+    unpaid_leave_days: int
+    net_salary: float
+
+    class Config:
+        from_attributes = True
+
+class PayrollRunSummary(BaseModel):
+    year: int
+    month: int
+    total_employees_processed: int
+    total_net_salary: float

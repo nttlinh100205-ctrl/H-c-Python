@@ -1,5 +1,3 @@
-
-
 class DatabaseOperationError(Exception):
     """Base exception cho mọi lỗi liên quan tới thao tác database.
     Mọi custom exception khác trong file này nên kế thừa từ đây,

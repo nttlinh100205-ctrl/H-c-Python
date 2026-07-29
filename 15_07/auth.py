@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -24,6 +23,11 @@ class Role:
     EMPLOYEE = "employee"
 
 
+def create_refresh_token(data: dict, expires_days: int = 7) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=expires_days)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, config.JWT_SECRET_KEY, algorithm=config.JWT_ALGORITHM)
 
 
 def hash_password(plain_password: str) -> str:

@@ -1,14 +1,14 @@
-
-
-
 import getpass
 
 from .Database import database, User
 from .auth import hash_password, Role
 from .logger import logger
 
-database.create_tables()
+
 def create_admin(username: str, password: str) -> None:
+    if not username or not username.strip():
+        print(" Username không được để trống.")
+        return
     if len(password) < 6:
         print(" Mật khẩu phải có ít nhất 6 ký tự.")
         return
@@ -41,6 +41,7 @@ def create_admin(username: str, password: str) -> None:
 
 if __name__ == "__main__":
     print("=== Tạo tài khoản Admin đầu tiên cho HR API ===")
+    database.create_tables()
     username = input("Username: ").strip()
     password = getpass.getpass("Password (ẩn khi gõ): ")
     create_admin(username, password)
